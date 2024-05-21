@@ -13,8 +13,8 @@ const DEFAULT_TITLE = "Select the most attractive thumbnail.";
 
 const s3Client = new S3Client({
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_R || "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY_R || "",
   },
   region: "us-east-1",
 });
