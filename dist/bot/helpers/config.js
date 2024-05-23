@@ -28,7 +28,6 @@ const dotenv = __importStar(require("dotenv"));
 dotenv.config();
 exports.Config = {
     NODE_ENV: process.env.NODE_ENV || "development",
-    TELE_BOT_TOKEN: process.env.TELE_BOT_TOKEN || "",
+    TELE_BOT_TOKEN: process.env.BOT_TOKEN || "",
     TELE_BOT_WEB_LINK: process.env.TELE_BOT_WEB_LINK || "",
-    BACKEND_URL: process.env.BACKEND_URL || "",
 };
