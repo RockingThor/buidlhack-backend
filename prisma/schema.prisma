@@ -49,6 +49,7 @@ model Worker{
   payouts         Payout[]
   pending_amount  Int
   locked_amount   Int
+  chatId          Int?
 }
 
 // model Balance{

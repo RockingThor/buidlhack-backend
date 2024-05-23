@@ -4,13 +4,25 @@ import { authMiddleWareWorker } from "../middlewares/middleware";
 import { prismaClient } from "../config/config";
 import { getNextTask } from "../utils/dbLogic";
 import { createSubmissionInput } from "../types/types";
+import { generateRandomString } from "../utils/util";
+
+import {
+    Connection,
+    Keypair,
+    PublicKey,
+    SystemProgram,
+    Transaction,
+    sendAndConfirmTransaction,
+} from "@solana/web3.js";
+import { decode } from "bs58";
+import { bot } from "../utils/bot";
 
 const workerRouter = Router();
+const connection = new Connection("https://api.devnet.solana.com");
 
 workerRouter.post("/signin", async (req, res) => {
     try {
-        const walletAddress =
-            req.body.wallet || "GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2ykNF";
+        const walletAddress = req.body.wallet;
         const telegram = req.body.telegram;
 
         const user = await prismaClient.worker.findFirst({
@@ -158,6 +170,124 @@ workerRouter.get("/balance", authMiddleWareWorker, async (req, res) => {
     }
 });
 
-workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {});
+workerRouter.post("/chat", async (req, res) => {
+    const telegram = req.body.telegram;
+    const chatId = req.body.chatId;
+
+    const worker = await prismaClient.worker.findFirst({
+        where: {
+            telegram,
+        },
+    });
+
+    if (worker) {
+        const response = await prismaClient.worker.update({
+            where: {
+                telegram,
+            },
+            data: {
+                chatId,
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+        });
+    } else {
+        const response = await prismaClient.worker.create({
+            data: {
+                address: generateRandomString(16),
+                pending_amount: 0,
+                locked_amount: 0,
+                telegram,
+                chatId,
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+        });
+    }
+});
+
+workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {
+    //@ts-ignore
+    const userId = req.userId;
+    const walletAddress = req.body.wallet;
+    const worker = await prismaClient.worker.findFirst({
+        where: {
+            id: userId,
+        },
+    });
+    const transaction = new Transaction().add(
+        SystemProgram.transfer({
+            fromPubkey: new PublicKey(
+                "GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2yTME"
+            ),
+            toPubkey: new PublicKey(walletAddress),
+            lamports: Number(worker?.pending_amount) * 1000000000,
+            // lamports: 0.02 * 1000000000,
+        })
+    );
+
+    const keypair = Keypair.fromSecretKey(
+        decode(process.env.PRIVATE_KEY || "")
+    );
+
+    let signature = "";
+    try {
+        signature = await sendAndConfirmTransaction(connection, transaction, [
+            keypair,
+        ]);
+    } catch (e) {
+        return res.json({
+            message: "Transaction failed",
+        });
+    }
+
+    console.log(signature);
+
+    // We should add a lock here
+    await prismaClient.$transaction(async (tx) => {
+        await tx.worker.update({
+            where: {
+                id: Number(userId),
+            },
+            data: {
+                pending_amount: {
+                    decrement: Number(worker?.pending_amount),
+                },
+                locked_amount: {
+                    increment: worker?.pending_amount,
+                },
+            },
+        });
+
+        await tx.payout.create({
+            data: {
+                user_id: Number(userId),
+                amount: Number(worker?.pending_amount),
+                status: "Processing",
+                signature: signature,
+            },
+        });
+    });
+
+    const chatId = worker?.chatId;
+    console.log(chatId);
+    const message = `Your payout of ${worker?.pending_amount} has been processed. Your transaction signature is ${signature}`;
+    if (chatId) {
+        try {
+            await bot.telegram.sendMessage(chatId, message);
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    res.json({
+        message: "Processing payout",
+        amount: worker?.pending_amount,
+    });
+});
 
 export default workerRouter;
