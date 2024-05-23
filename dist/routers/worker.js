@@ -18,10 +18,14 @@ const middleware_1 = require("../middlewares/middleware");
 const config_1 = require("../config/config");
 const dbLogic_1 = require("../utils/dbLogic");
 const types_1 = require("../types/types");
+const util_1 = require("../utils/util");
+const web3_js_1 = require("@solana/web3.js");
+const bs58_1 = require("bs58");
 const workerRouter = (0, express_1.Router)();
+const connection = new web3_js_1.Connection("https://api.devnet.solana.com");
 workerRouter.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const walletAddress = req.body.wallet || "GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2ykNF";
+        const walletAddress = req.body.wallet;
         const telegram = req.body.telegram;
         const user = yield config_1.prismaClient.worker.findFirst({
             where: {
@@ -147,5 +151,97 @@ workerRouter.get("/balance", middleware_1.authMiddleWareWorker, (req, res) => __
         });
     }
 }));
-workerRouter.post("/payout", middleware_1.authMiddleWareWorker, (req, res) => __awaiter(void 0, void 0, void 0, function* () { }));
+workerRouter.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const telegram = req.body.telegram;
+    const chatId = req.body.chatId;
+    const worker = yield config_1.prismaClient.worker.findFirst({
+        where: {
+            telegram,
+        },
+    });
+    if (worker) {
+        const response = yield config_1.prismaClient.worker.update({
+            where: {
+                telegram,
+            },
+            data: {
+                chatId,
+            },
+        });
+        return res.status(200).json({
+            success: true,
+        });
+    }
+    else {
+        const response = yield config_1.prismaClient.worker.create({
+            data: {
+                address: (0, util_1.generateRandomString)(16),
+                pending_amount: 0,
+                locked_amount: 0,
+                telegram,
+                chatId,
+            },
+        });
+        return res.status(200).json({
+            success: true,
+        });
+    }
+}));
+workerRouter.post("/payout", middleware_1.authMiddleWareWorker, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    //@ts-ignore
+    const userId = req.userId;
+    const walletAddress = req.body.wallet;
+    const worker = yield config_1.prismaClient.worker.findFirst({
+        where: {
+            id: userId,
+        },
+    });
+    const transaction = new web3_js_1.Transaction().add(web3_js_1.SystemProgram.transfer({
+        fromPubkey: new web3_js_1.PublicKey("GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2yTME"),
+        toPubkey: new web3_js_1.PublicKey(walletAddress),
+        lamports: Number(worker === null || worker === void 0 ? void 0 : worker.pending_amount) * 1000000000,
+        // lamports: 0.02 * 1000000000,
+    }));
+    const keypair = web3_js_1.Keypair.fromSecretKey((0, bs58_1.decode)(process.env.PRIVATE_KEY || ""));
+    let signature = "";
+    try {
+        signature = yield (0, web3_js_1.sendAndConfirmTransaction)(connection, transaction, [
+            keypair,
+        ]);
+    }
+    catch (e) {
+        return res.json({
+            message: "Transaction failed",
+        });
+    }
+    console.log(signature);
+    // We should add a lock here
+    yield config_1.prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        yield tx.worker.update({
+            where: {
+                id: Number(userId),
+            },
+            data: {
+                pending_amount: {
+                    decrement: Number(worker === null || worker === void 0 ? void 0 : worker.pending_amount),
+                },
+                locked_amount: {
+                    increment: worker === null || worker === void 0 ? void 0 : worker.pending_amount,
+                },
+            },
+        });
+        yield tx.payout.create({
+            data: {
+                user_id: Number(userId),
+                amount: Number(worker === null || worker === void 0 ? void 0 : worker.pending_amount),
+                status: "Processing",
+                signature: signature,
+            },
+        });
+    }));
+    res.json({
+        message: "Processing payout",
+        amount: worker === null || worker === void 0 ? void 0 : worker.pending_amount,
+    });
+}));
 exports.default = workerRouter;

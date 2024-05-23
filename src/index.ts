@@ -3,9 +3,13 @@ import userRouter from "./routers/user";
 import workerRouter from "./routers/worker";
 import "dotenv/config";
 import cors from "cors";
+import { Bot } from "./bot/helpers/bot";
 
 const app = express();
 app.use(cors());
+
+const bot = new Bot();
+bot.start();
 
 app.use(express.json());
 
@@ -13,9 +17,9 @@ app.use("/v1/users", userRouter);
 app.use("/v1/workers", workerRouter);
 
 app.listen(3000, () => {
-  console.log("App is running on PORT 3000");
+    console.log("App is running on PORT 3000");
 });
 
 app.get("/ping", async (req, res) => {
-  res.send("pong");
+    res.send("pong");
 });

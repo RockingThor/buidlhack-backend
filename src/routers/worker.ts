@@ -15,7 +15,6 @@ import {
     sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import { decode } from "bs58";
-import { bot } from "../utils/bot";
 
 const workerRouter = Router();
 const connection = new Connection("https://api.devnet.solana.com");
@@ -272,17 +271,6 @@ workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {
             },
         });
     });
-
-    const chatId = worker?.chatId;
-    console.log(chatId);
-    const message = `Your payout of ${worker?.pending_amount} has been processed. Your transaction signature is ${signature}`;
-    if (chatId) {
-        try {
-            await bot.telegram.sendMessage(chatId, message);
-        } catch (err) {
-            console.log(err);
-        }
-    }
 
     res.json({
         message: "Processing payout",
