@@ -191,10 +191,15 @@ workerRouter.post("/chat", async (req, res) => {
 
 workerRouter.post("/payoutDetails", async (req, res) => {
     const userId = req.body.userId;
-    const payout = await prismaClient.payout.findMany({
+    const payout = await prismaClient.payout.findFirst({
         where: {
             user_id: Number(userId),
         },
+    });
+
+    return res.status(200).json({
+        success: true,
+        signature: payout?.signature || "",
     });
 });
 
@@ -261,9 +266,10 @@ workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {
         });
     });
 
-    res.json({
+    return res.json({
         message: "Processing payout",
         amount: worker?.pending_amount,
+        signature: signature,
     });
 });
 
