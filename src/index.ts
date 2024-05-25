@@ -3,13 +3,8 @@ import userRouter from "./routers/user";
 import workerRouter from "./routers/worker";
 import "dotenv/config";
 import cors from "cors";
-import { Bot } from "./bot/helpers/bot";
-
 const app = express();
 app.use(cors());
-
-const bot = new Bot();
-bot.start();
 
 app.use(express.json());
 

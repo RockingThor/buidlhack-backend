@@ -171,7 +171,6 @@ workerRouter.get("/balance", authMiddleWareWorker, async (req, res) => {
 
 workerRouter.post("/chat", async (req, res) => {
     const telegram = req.body.telegram;
-    const chatId = req.body.chatId;
 
     const worker = await prismaClient.worker.findFirst({
         where: {
@@ -180,33 +179,23 @@ workerRouter.post("/chat", async (req, res) => {
     });
 
     if (worker) {
-        const response = await prismaClient.worker.update({
-            where: {
-                telegram,
-            },
-            data: {
-                chatId,
-            },
-        });
-
         return res.status(200).json({
             success: true,
-        });
-    } else {
-        const response = await prismaClient.worker.create({
-            data: {
-                address: generateRandomString(16),
-                pending_amount: 0,
-                locked_amount: 0,
-                telegram,
-                chatId,
-            },
-        });
-
-        return res.status(200).json({
-            success: true,
+            id: worker.id,
         });
     }
+    return res.status(200).json({
+        success: false,
+    });
+});
+
+workerRouter.post("/payoutDetails", async (req, res) => {
+    const userId = req.body.userId;
+    const payout = await prismaClient.payout.findMany({
+        where: {
+            user_id: Number(userId),
+        },
+    });
 });
 
 workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {
