@@ -218,7 +218,7 @@ workerRouter.post("/payout", authMiddleWareWorker, async (req, res) => {
                 "GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2yTME"
             ),
             toPubkey: new PublicKey(walletAddress),
-            lamports: Number(worker?.pending_amount) * 1000000000,
+            lamports: Number(worker?.pending_amount),
             // lamports: 0.02 * 1000000000,
         })
     );
