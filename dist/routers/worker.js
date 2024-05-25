@@ -191,7 +191,7 @@ workerRouter.post("/payout", middleware_1.authMiddleWareWorker, (req, res) => __
     const transaction = new web3_js_1.Transaction().add(web3_js_1.SystemProgram.transfer({
         fromPubkey: new web3_js_1.PublicKey("GLvVMs13Zxyorf5xHMHKwZAiG5NqMbH7XvFTL8E2yTME"),
         toPubkey: new web3_js_1.PublicKey(walletAddress),
-        lamports: Number(worker === null || worker === void 0 ? void 0 : worker.pending_amount) * 1000000000,
+        lamports: Number(worker === null || worker === void 0 ? void 0 : worker.pending_amount),
         // lamports: 0.02 * 1000000000,
     }));
     const keypair = web3_js_1.Keypair.fromSecretKey((0, bs58_1.decode)(process.env.PRIVATE_KEY || ""));
