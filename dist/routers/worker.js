@@ -18,7 +18,6 @@ const middleware_1 = require("../middlewares/middleware");
 const config_1 = require("../config/config");
 const dbLogic_1 = require("../utils/dbLogic");
 const types_1 = require("../types/types");
-const util_1 = require("../utils/util");
 const web3_js_1 = require("@solana/web3.js");
 const bs58_1 = require("bs58");
 const workerRouter = (0, express_1.Router)();
@@ -153,39 +152,32 @@ workerRouter.get("/balance", middleware_1.authMiddleWareWorker, (req, res) => __
 }));
 workerRouter.post("/chat", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const telegram = req.body.telegram;
-    const chatId = req.body.chatId;
     const worker = yield config_1.prismaClient.worker.findFirst({
         where: {
             telegram,
         },
     });
     if (worker) {
-        const response = yield config_1.prismaClient.worker.update({
-            where: {
-                telegram,
-            },
-            data: {
-                chatId,
-            },
-        });
         return res.status(200).json({
             success: true,
+            id: worker.id,
         });
     }
-    else {
-        const response = yield config_1.prismaClient.worker.create({
-            data: {
-                address: (0, util_1.generateRandomString)(16),
-                pending_amount: 0,
-                locked_amount: 0,
-                telegram,
-                chatId,
-            },
-        });
-        return res.status(200).json({
-            success: true,
-        });
-    }
+    return res.status(200).json({
+        success: false,
+    });
+}));
+workerRouter.post("/payoutDetails", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const userId = req.body.userId;
+    const payout = yield config_1.prismaClient.payout.findFirst({
+        where: {
+            user_id: Number(userId),
+        },
+    });
+    return res.status(200).json({
+        success: true,
+        signature: (payout === null || payout === void 0 ? void 0 : payout.signature) || "",
+    });
 }));
 workerRouter.post("/payout", middleware_1.authMiddleWareWorker, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     //@ts-ignore
@@ -239,9 +231,10 @@ workerRouter.post("/payout", middleware_1.authMiddleWareWorker, (req, res) => __
             },
         });
     }));
-    res.json({
+    return res.json({
         message: "Processing payout",
         amount: worker === null || worker === void 0 ? void 0 : worker.pending_amount,
+        signature: signature,
     });
 }));
 exports.default = workerRouter;

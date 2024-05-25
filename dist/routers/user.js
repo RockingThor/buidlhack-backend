@@ -173,4 +173,14 @@ userRouter.get("/task", middleware_1.authMiddleWare, (req, res) => __awaiter(voi
     });
     return res.status(200).json({ result, taskDetails: task });
 }));
+userRouter.get("/polls", middleware_1.authMiddleWare, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    //@ts-ignore
+    const userId = req.userId;
+    const tasks = yield config_1.prismaClient.task.findMany({
+        where: {
+            user_id: Number(userId),
+        },
+    });
+    return res.status(200).json({ tasks });
+}));
 exports.default = userRouter;
